@@ -4,18 +4,22 @@
    contain the root `toctree` directive.
 
 Flask, Uwsgi, Nginx, systemd  Kurulum Belgesi!
-========================================================
+==============================================
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   Giriş
-   Nginx
+   doc/Giriş
+   doc/DNS
+   doc/Nginx
+   doc/Flask
+   doc/AyarDosyalari
+
 
 Tablolar ve Indeksler
-==================
+=====================
 
 * :ref:`genindex`
 * :ref:`modindex`
