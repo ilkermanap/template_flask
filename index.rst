@@ -11,7 +11,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   doc/Giriş
+   doc/Giris
    doc/DNS
    doc/Nginx
    doc/Flask
