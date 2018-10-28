@@ -1,5 +1,5 @@
 DNS
-== 
+=== 
 
 DNS,(Domain Name Server) kısaca ip alan adı dönüşümünü ya da alan adı ip adresi dönüşümünü yapar.
 
@@ -12,15 +12,15 @@ DNS sunucularının çeşiteri vardır.
 4- Gizli(Stealth) DNS
 
 Birincil DNS 
-------------
+............
 Tek başına çalışan DNS sunucularıdır. 
 
 İkincil DNS 
------------
+...........
 DNS önemli bir servistir. Tek başına çalışmaması önerilir. DNS sunucuları çok fazla istek aldığı için ikincil yardımcı sunuculara ihtiyaç vardır.
 
 Depolama DNS
-------------
+............
 Herhangi bir alanadı sunmaz, sadece sorgulara daha hızlı yanıt verir. Verdiği cevapları bir süre önbelleğinde tuttuğu için depolama (cache only dns) denilmektedir.
 
 
@@ -29,7 +29,7 @@ Biz anlatımımızı Bind DNS için yapacağız.
 Bind DNS kurulumu;
 
 Debian/Ubuntu Sistemler için
-----------------------------
+............................
 
 .. code-block:: bash
 
@@ -204,7 +204,8 @@ DNS sunucusun en temel kurulumu yukarıdaki gibidir.
 UBUNTU İÇİN DNS KURULUMU BU KADAR ŞİMDİ CENTOS SİSTEMLER İÇİN DNS KURULUMUNUN ANLATIMINA GEÇELİM.
 
 Centos için dns kurulumu
-------------------------
+........................
+
 .. code-block:: bash
 
    $ sudo yum install bind bind-chroot bind-libs bind-utils
