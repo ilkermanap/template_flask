@@ -1,0 +1,421 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="tr">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Flask, Uwsgi, Nginx, systemd 0.1 belgelendirme çalışması</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/translations.js"></script>
+    <link rel="index" title="Dizin" href="genindex.html" />
+    <link rel="search" title="Ara" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="flask-uwsgi-nginx-systemd-kurulum-belgesi">
+<h1>Flask, Uwsgi, Nginx, systemd  Kurulum Belgesi!<a class="headerlink" href="#flask-uwsgi-nginx-systemd-kurulum-belgesi" title="Bu başlığın kalıcı bağlantısı">¶</a></h1>
+<p>Contents:</p>
+<div class="toctree-wrapper compound">
+<span id="document-doc/Giris"></span><div class="section" id="giris">
+<h2>Giriş<a class="headerlink" href="#giris" title="Bu başlığın kalıcı bağlantısı">¶</a></h2>
+<p>Bu belgede, sanal sunucu üzerinde flask uygulaması çalıştırmak için kullanılabilecek yöntemlerden birini örnek ayar dosyalarını da vererek anlatmaya çalışacağız. Senaryoc</p>
+<p>Flask ile yazılmış uygulamaları sanal sunucularda çalıştırmak çoğu kişi için altından kalkılamayacak bir işyükü gibi görünür. Ayarlanması gereken birden fazla servis olduğundan,</p>
+</div>
+<span id="document-doc/DNS"></span><div class="section" id="dns">
+<h2>DNS<a class="headerlink" href="#dns" title="Bu başlığın kalıcı bağlantısı">¶</a></h2>
+<p>DNS,(Domain Name Server) kısaca ip alan adı dönüşümünü ya da alan adı ip adresi dönüşümünü yapar.</p>
+<p>DNS’se sorulan alan adı adresini DNS biliyorsa ya da cache’in de var ise hemen geri dönüş yapar. Eğer ki DNS alan adının adresini bilmiyorsa bilen bir başka DNS sunucusuna sorar böylece ve adres bilgisini soran kişiye cevap verir.</p>
+<p>DNS sunucularının çeşiteri vardır.
+1- Birincil(Master) DNS
+2- İkincil(Slave) DNS
+3- Depolama(Cache Only) DNS
+4- Gizli(Stealth) DNS</p>
+<div class="section" id="birincil-dns">
+<h3>Birincil DNS<a class="headerlink" href="#birincil-dns" title="Bu başlığın kalıcı bağlantısı">¶</a></h3>
+<p>Tek başına çalışan DNS sunucularıdır.</p>
+</div>
+<div class="section" id="ikincil-dns">
+<h3>İkincil DNS<a class="headerlink" href="#ikincil-dns" title="Bu başlığın kalıcı bağlantısı">¶</a></h3>
+<p>DNS önemli bir servistir. Tek başına çalışmaması önerilir. DNS sunucuları çok fazla istek aldığı için ikincil yardımcı sunuculara ihtiyaç vardır.</p>
+</div>
+<div class="section" id="depolama-dns">
+<h3>Depolama DNS<a class="headerlink" href="#depolama-dns" title="Bu başlığın kalıcı bağlantısı">¶</a></h3>
+<p>Herhangi bir alanadı sunmaz, sadece sorgulara daha hızlı yanıt verir. Verdiği cevapları bir süre önbelleğinde tuttuğu için depolama (cache only dns) denilmektedir.</p>
+<p>Biz anlatımımızı Bind DNS için yapacağız.</p>
+<p>Bind DNS kurulumu;</p>
+</div>
+<div class="section" id="debian-ubuntu-sistemler-icin">
+<h3>Debian/Ubuntu Sistemler için<a class="headerlink" href="#debian-ubuntu-sistemler-icin" title="Bu başlığın kalıcı bağlantısı">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ sudo apt-get install bind9 dnsutils
+</pre></div>
+</div>
+<p>Debian ve ubuntu sistemleri için dns ayarları “/etc/bind” dizini altından yapılır.
+DNS ayarları “named.conf.options” dosyasından yapılır.(forwarders, recursive, port…)</p>
+<p>DNS sunucunuzu çalıştırmak için;</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ sudo systemctl start bind9
+</pre></div>
+</div>
+<p>DNS sunucunuzun açılışta çalışması için;</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ sudo systemctl <span class="nb">enable</span> bind9
+</pre></div>
+</div>
+<p>DNS sunucusu kurulduktan sonra “named.conf.options” dosyasından “forwarders” bloğunu yorum satırı olmaktan çıkartırsanız. DNS sunucusuna gelen sorgulari kendinde bulamaz ise “forwarders” bilgisine bakar ve o adrese kendine gelen soruyu sorar cevap geldiğin de kendine gelen sorguyu cevaplar.</p>
+<p>ÖRNEK:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>forwarders<span class="o">{</span>
+     <span class="m">8</span>.8.8.8<span class="p">;</span>
+     <span class="m">8</span>.8.4.4<span class="p">;</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>DNS sunucunuzu ayarların geçerli olması için yeniden başlatın.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ systemctl restart bind9
+</pre></div>
+</div>
+<p>Sisteminizin DNS adreserini DNS sunucunuzun ip adresini girin ve google’a ping atmayı deneyin. Cevap alıyor iseniz DNS sunucunuz olması gerektiği gibi çalışıyor demektir.</p>
+<p>DNS sunucunuz sadece sizin sorgularınıza cevap veriyor. Yani ona “example.com” gibi bir adrese gitmek istediğinizi söylediğiniz de size “example.com” alanadının bilgisini verecektir.</p>
+<p>DNS suncunuz için bir alan adı belirleyelim.</p>
+<p>Zone tanımlarımızı “named.conf.local” dosyasına yaparız.</p>
+<p>ÖRNEK (manap.com adından bir zone oluşturalım):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>zone <span class="s2">&quot;manap.com&quot;</span> <span class="o">{</span>
+     <span class="nb">type</span> master<span class="p">;</span>
+     file <span class="s2">&quot;/etc/bind/db.manap.com&quot;</span><span class="p">;</span>
+<span class="o">}</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Zone dosyasını kolayca oluşturmak için “/etc/bind/db.local” dosyasının kopyasını kullanabiliriz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ cp /etc/bind/db.local /etc/bind/db.manap.com
+</pre></div>
+</div>
+<p>Daha sonra “db.manap.com” dosyasını şu şekilde dolduruyoruz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@ubuntu:/etc/bind# cat db.manap.com
+<span class="p">;</span>
+<span class="p">;</span> BIND data file <span class="k">for</span> <span class="nb">local</span> loopback interface
+<span class="p">;</span>
+<span class="nv">$TTL</span>    <span class="m">604800</span>
+@       IN      SOA     localhost. root@manap.com. <span class="o">(</span>          soa kaydi
+                           <span class="m">2</span>         <span class="p">;</span> Serial                         seri numarasi bu dosyada herdegisklik yapildiginda bu degerin onceki degerinden fazla olmasi gerekir.
+                      <span class="m">604800</span>         <span class="p">;</span> Refresh                        yenilenme suresi
+                       <span class="m">86400</span>         <span class="p">;</span> Retry                          tekrar etme suresi
+                     <span class="m">2419200</span>         <span class="p">;</span> Expire                         gecerlilik suresi
+                      <span class="m">604800</span> <span class="o">)</span>       <span class="p">;</span> Negative Cache TTL cache te bekleme suresi
+<span class="p">;</span>
+@       IN      NS      manap.com.           <span class="p">;</span> isim sunucusunun adi
+@       IN      A       <span class="m">192</span>.168.1.102        <span class="p">;</span> isim sunucusunun adresi
+@       IN      AAAA    ::1
+</pre></div>
+</div>
+<p>DNS sunucumuza “manap.com” alanadına erişip erişemediğini test edelim.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@ubuntu:/etc/bind# ping -c <span class="m">2</span> manap.com
+PING manap.com <span class="o">(</span><span class="m">192</span>.168.1.102<span class="o">)</span> <span class="m">56</span><span class="o">(</span><span class="m">84</span><span class="o">)</span> bytes of data.
+<span class="m">64</span> bytes from <span class="m">192</span>.168.1.102: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span><span class="m">0</span>.017 ms
+<span class="m">64</span> bytes from <span class="m">192</span>.168.1.102: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span><span class="m">0</span>.029 ms
+
+--- manap.com ping statistics ---
+<span class="m">2</span> packets transmitted, <span class="m">2</span> received, <span class="m">0</span>% packet loss, <span class="nb">time</span> 1001ms
+rtt min/avg/max/mdev <span class="o">=</span> <span class="m">0</span>.017/0.023/0.029/0.006 ms
+</pre></div>
+</div>
+<p>Erişebiliyor, buraya tüm sonuçlar aynı ise herhangi bi sorun yoktur demektir.
+DNS sunucumuz alan adını sorduğumuz ip adresini söyleyebiliyor fakat ip adresinden alan adını getiremiyor.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@ubuntu:/etc/bind# host <span class="m">192</span>.168.1.102
+
+<span class="p">;;</span> connection timed out<span class="p">;</span> no servers could be reached
+</pre></div>
+</div>
+<p>DNS sunucumuzun ip adresinden alan adını getirebilmesi için reverzone dosyasının da oluşturulması gerekir.</p>
+<p>“named.conf.local” dosyasına reverse zone dosyasını ve adresini oluşturmamız gerekir.
+reverse zone dosyasını kolay oluşturmak için “/etc/bind/db.127” dosyasının bir kopyasını oluşturuyoruz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ cp /etc/bind/db.127 /etc/bind/rev.manap.com
+</pre></div>
+</div>
+<p>Daha sonra içerisini şu şekilde dolduruyoruz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@ubuntu:/etc/bind# cat rev.manap.com
+<span class="p">;</span>
+<span class="p">;</span> BIND reverse data file <span class="k">for</span> <span class="nb">local</span> loopback interface
+<span class="p">;</span>
+<span class="nv">$TTL</span>    <span class="m">604800</span>
+@       IN      SOA     manap.com. root.manap.com. <span class="o">(</span>
+                           <span class="m">6</span>         <span class="p">;</span> Serial
+                      <span class="m">604800</span>         <span class="p">;</span> Refresh
+                       <span class="m">86400</span>         <span class="p">;</span> Retry
+                     <span class="m">2419200</span>         <span class="p">;</span> Expire
+                      <span class="m">604800</span> <span class="o">)</span>       <span class="p">;</span> Negative Cache TTL
+<span class="p">;</span>
+@       IN      NS      ns.
+<span class="m">102</span>     IN      PTR     ns.manap.com.
+</pre></div>
+</div>
+<p>Dosyamızın içine yukarıdaki gibi doldurduktan sonra ptr kaydını sorgulayalım.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>root@ubuntu:/etc/bind# host <span class="m">192</span>.168.1.102
+<span class="m">102</span>.1.168.192.in-addr.arpa domain name pointer ns.manap.com.
+</pre></div>
+</div>
+<p>DNS sunucusun en temel kurulumu yukarıdaki gibidir.
+“named.conf.options” dosyasında yapılabilecek bazı ayarlar</p>
+<p>“recursion yes;” = DNS sunucusunun bilemediği bir adresi başka bir dns sunucusunu sorulmasını isteniyor ise yes değeri verilir.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span> <span class="s2">&quot;acl &#39;trusted&#39;{</span>
+<span class="s2">      192.168.1.105;</span>
+<span class="s2">      192.168.1.104;</span>
+<span class="s2">      192.168.2.0/24;</span>
+<span class="s2">};</span>
+</pre></div>
+</div>
+<p>” = acl ile sadece belirtilen ip adreslerinden veya networklerden sorguları kabul etmesi için kullanılır. Fakat sadece bu kullanımı ile çalışmayacaktır.
+“allow-recursion { trusted; };” = ile acl trusted olanlardan sorgu alabilir.
+“listen-on { 192.168.1.102; };” = hangi ip adresinden dns sorgularını dinleyeceğini belirtmek için kullanılır.
+“allow-transfer { none; };” = zone tranferi yapıp yapmayacağını karar vermek için kullanılır. Zone transferi ikincil sunucuya yapılacak ise “none” değeri yerine ip adresi yazılmalıdır.</p>
+<p>UBUNTU İÇİN DNS KURULUMU BU KADAR ŞİMDİ CENTOS SİSTEMLER İÇİN DNS KURULUMUNUN ANLATIMINA GEÇELİM.</p>
+</div>
+<div class="section" id="centos-icin-dns-kurulumu">
+<h3>Centos için dns kurulumu<a class="headerlink" href="#centos-icin-dns-kurulumu" title="Bu başlığın kalıcı bağlantısı">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ sudo yum install <span class="nb">bind</span> bind-chroot bind-libs bind-utils
+</pre></div>
+</div>
+<p>Centos sistemlerde dns ayarları “/etc/named.conf” dosyasından yapılır.</p>
+<p>Dosyanın içerisinde yapılması gereken bir kaç temel ayar vardır bunlar;</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>options <span class="o">{</span>
+     listen-on port <span class="m">53</span> <span class="o">{</span> <span class="m">127</span>.0.0.1<span class="p">;</span> <span class="m">192</span>.168.1.101<span class="p">;</span> <span class="o">}</span><span class="p">;</span> /* hangi ip adresinden dns sorgularını dinleyeceğiniz ve hangi portu dinleyeceğiniz */
+     directory <span class="s2">&quot;/var/named&quot;</span><span class="p">;</span> /* zone dosyalarını nerede tutacağınızın bilgileri*/
+     forwarders<span class="o">{</span>
+             <span class="m">8</span>.8.8.8<span class="p">;</span>
+             <span class="m">8</span>.8.4.4<span class="p">;</span>
+     <span class="o">}</span><span class="p">;</span> /* dns sunucu gelen sorgulara cevap veremeyince kime soracağının bilgisi */
+
+     recursion yes<span class="p">;</span> /* dns sunucusun diğer dns sunuculara alanadı bilgilerini sorması için */
+
+<span class="o">}</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Centos sistemlerde zone bilgileri “/etc/named.conf” dosyasına yazılır.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>zone <span class="s2">&quot;manap.com&quot;</span> <span class="o">{</span>
+     <span class="nb">type</span> master<span class="p">;</span>
+     file <span class="s2">&quot;/var/named/db.manap.com&quot;</span><span class="p">;</span>
+<span class="o">}</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Daha “/var/named/” dizinine gidilir. Buradaki “named.localhost” dosyasının bir kopyası oluşturulur.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ cp /var/named/named.localhost /var/named/db.manap.com
+</pre></div>
+</div>
+<p>Daha içerisi aşağıdaki gibi düzenlenir.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>root@centos named<span class="o">]</span><span class="c1"># cat db.manap.com</span>
+<span class="nv">$TTL</span> 1D
+@       IN SOA  ns.manap.com. root@manap.com. <span class="o">(</span>
+                                     <span class="m">4</span>       <span class="p">;</span> serial
+                                     1D      <span class="p">;</span> refresh
+                                     1H      <span class="p">;</span> retry
+                                     1W      <span class="p">;</span> expire
+                                     3H <span class="o">)</span>    <span class="p">;</span> minimum
+@       IN      NS      manap.com.
+@       IN      A       <span class="m">192</span>.168.1.101
+</pre></div>
+</div>
+<p>Daha sonra “db.manap.com” dosyasının sahiplik bilgileri “named” kullanıcısına verilir. Eğer sahiplik bilgileri değiştirilmez ise dns sunucusu çalışmayacaktır.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ chown named:named db.manap.com
+</pre></div>
+</div>
+<p>Şimdi dns sunucusunu yeniden başlatabiliriz. DNS sunucusu yeniden başlatıldıktan sonra sisteminizin dns adresleri olarak dns sunucunuzun ip adreslerini girmelisiniz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ systemctl restart named
+
+<span class="o">[</span>root@centos named<span class="o">]</span><span class="c1"># ping -c 2 manap.com</span>
+PING manap.com <span class="o">(</span><span class="m">192</span>.168.1.101<span class="o">)</span> <span class="m">56</span><span class="o">(</span><span class="m">84</span><span class="o">)</span> bytes of data.
+<span class="m">64</span> bytes from centos <span class="o">(</span><span class="m">192</span>.168.1.101<span class="o">)</span>: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">1</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span><span class="m">0</span>.014 ms
+<span class="m">64</span> bytes from centos <span class="o">(</span><span class="m">192</span>.168.1.101<span class="o">)</span>: <span class="nv">icmp_seq</span><span class="o">=</span><span class="m">2</span> <span class="nv">ttl</span><span class="o">=</span><span class="m">64</span> <span class="nv">time</span><span class="o">=</span><span class="m">0</span>.032 ms
+
+--- manap.com ping statistics ---
+<span class="m">2</span> packets transmitted, <span class="m">2</span> received, <span class="m">0</span>% packet loss, <span class="nb">time</span> 1001ms
+rtt min/avg/max/mdev <span class="o">=</span> <span class="m">0</span>.014/0.023/0.032/0.009 ms
+</pre></div>
+</div>
+<p>DNS sunucusu alanadı ip adresi dönüşümünü yapıyor fakat ip adresi alan adı dönüşümünü yapamıyor. Bunun için Reversezone dns bilgileri oluşturmamız gerekir.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>root@centos named<span class="o">]</span><span class="c1"># host 192.168.1.101</span>
+Host <span class="m">101</span>.1.168.192.in-addr.arpa. not found: <span class="m">3</span><span class="o">(</span>NXDOMAIN<span class="o">)</span>
+</pre></div>
+</div>
+<p>DNS sunucumuz ip adresi alan adı dönüşümünü yapamıyor.</p>
+<p>“/etc/named.conf” dosyamıza aşağıdaki gibi zone bilgilerini giriyroruz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>zone <span class="s2">&quot;1.168.192.in-addr.arpa&quot;</span> <span class="o">{</span>
+   <span class="nb">type</span> master<span class="p">;</span>
+   file <span class="s2">&quot;/var/named/rev.manap.com&quot;</span><span class="p">;</span>
+<span class="o">}</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Daha sonra “/var/named” dizinine gidip “named.loopback” dosyasının bir kopyasını oluşturuyoruz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ cp /var/named/named.loopback /var/named/rev.manap.com
+</pre></div>
+</div>
+<p>“rev.manap.com” dosyasının içerisi aşağıdaki gibi doldurup, sahiplik bilgisini değiştiriyoruz ve dns sunucumuzu yeniedn başlatıyoruz.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>root@centos named<span class="o">]</span><span class="c1"># host 192.168.1.101</span>
+<span class="m">101</span>.1.168.192.in-addr.arpa domain name pointer ns.manap.com.
+</pre></div>
+</div>
+<p>Tüm bunları yaptıktan sonra DNS sunucumuza ip adresini sorduğumuzda bize alan adını verdiğini gördük.</p>
+</div>
+</div>
+<span id="document-doc/Nginx"></span><div class="section" id="nginx-kurulum-ve-ayarlar">
+<h2>NGINX Kurulum ve Ayarlar<a class="headerlink" href="#nginx-kurulum-ve-ayarlar" title="Bu başlığın kalıcı bağlantısı">¶</a></h2>
+<p>NGINX, Apache gibi bir web sunucu uygulamasıdır. Birden fazla web sitesini farklı domain adları altında kolayca sunar.</p>
+<p>Flask, django, php gibi web çatıları ile yazılmış uygulamaları aynı sunucu üzerinde sunabilirsiniz.</p>
+</div>
+<span id="document-doc/Flask"></span><span id="document-doc/AyarDosyalari"></span><div class="section" id="ayar-ve-uygulama-dosyalari">
+<h2>Ayar ve Uygulama Dosyalari<a class="headerlink" href="#ayar-ve-uygulama-dosyalari" title="Bu başlığın kalıcı bağlantısı">¶</a></h2>
+<p>Kodlar, ayar dosyalarini  buraya ekleyecegiz.</p>
+<div class="section" id="nginx-ayarlari">
+<h3>NGINX Ayarlari<a class="headerlink" href="#nginx-ayarlari" title="Bu başlığın kalıcı bağlantısı">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">server</span> <span class="p">{</span>
+	<span class="n">listen</span> <span class="mi">443</span> <span class="n">ssl</span><span class="p">;</span>
+	<span class="n">server_name</span> <span class="n">hello_world</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">;</span>
+	<span class="n">root</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">webservice</span><span class="o">/</span><span class="n">hello_world</span><span class="p">;</span>
+	<span class="n">access_log</span>  <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">nginx</span><span class="o">/</span><span class="n">hello_world_secure</span><span class="o">.</span><span class="n">access</span><span class="o">.</span><span class="n">log</span><span class="p">;</span>
+	<span class="n">error_log</span>  <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">log</span><span class="o">/</span><span class="n">nginx</span><span class="o">/</span><span class="n">hello_world_secure</span><span class="o">.</span><span class="n">error</span><span class="o">.</span><span class="n">log</span> <span class="n">error</span><span class="p">;</span>
+	<span class="n">index</span>	<span class="n">index</span><span class="o">.</span><span class="n">html</span> <span class="n">index</span><span class="o">.</span><span class="n">htm</span> <span class="n">index</span><span class="o">.</span><span class="n">php</span><span class="p">;</span>
+	
+	<span class="n">ssl_session_timeout</span>  <span class="mi">5</span><span class="n">m</span><span class="p">;</span>	
+	<span class="n">ssl_protocols</span>        <span class="n">SSLv3</span> <span class="n">TLSv1</span><span class="p">;</span>
+	<span class="n">ssl_certificate</span>      <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">letsencrypt</span><span class="o">/</span><span class="n">live</span><span class="o">/</span><span class="n">hello_world</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">cert</span><span class="o">.</span><span class="n">pem</span><span class="p">;</span>
+	<span class="n">ssl_certificate_key</span>  <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">letsencrypt</span><span class="o">/</span><span class="n">live</span><span class="o">/</span><span class="n">hello_world</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">privkey</span><span class="o">.</span><span class="n">pem</span><span class="p">;</span>
+
+	<span class="n">location</span> <span class="o">/</span> <span class="p">{</span>
+	    <span class="n">include</span> <span class="n">uwsgi_params</span><span class="p">;</span>
+           <span class="n">uwsgi_modifier1</span> <span class="mi">30</span><span class="p">;</span>
+	    <span class="n">uwsgi_pass</span> <span class="n">unix</span><span class="p">:</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">webservice</span><span class="o">/</span><span class="n">hello_world</span><span class="o">/</span><span class="n">uwsgi</span><span class="o">.</span><span class="n">sock</span><span class="p">;</span>
+	<span class="p">}</span>
+
+	<span class="n">location</span> <span class="o">^~</span> <span class="o">/</span><span class="n">static</span><span class="o">/</span>  <span class="p">{</span>
+	    <span class="n">include</span>  <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">nginx</span><span class="o">/</span><span class="n">mime</span><span class="o">.</span><span class="n">types</span><span class="p">;</span>
+	    <span class="n">root</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">html</span><span class="o">/</span><span class="n">hello_world_static</span><span class="p">;</span>
+	<span class="p">}</span>	
+<span class="p">}</span>
+
+<span class="n">server</span> <span class="p">{</span>
+	<span class="n">listen</span>       <span class="mi">80</span><span class="p">;</span>
+	<span class="n">server_name</span>  <span class="n">hello_world</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="p">;</span>
+	<span class="c1"># eger ssl olmayan siteden otomatik olarak ssl olan siteye </span>
+        <span class="c1"># yonelmesini istiyorsaniz, asagidaki satirin onundeki # isaretini kaldirin</span>
+	<span class="c1">#return 301 https://$server_name$request_uri; </span>
+
+	<span class="n">location</span> <span class="o">/</span> <span class="p">{</span>
+            <span class="n">include</span> <span class="n">uwsgi_params</span><span class="p">;</span>
+            <span class="n">uwsgi_modifier1</span> <span class="mi">30</span><span class="p">;</span>
+	    <span class="n">uwsgi_pass</span> <span class="n">unix</span><span class="p">:</span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">webservice</span><span class="o">/</span><span class="n">hello_world</span><span class="o">/</span><span class="n">uwsgi</span><span class="o">.</span><span class="n">sock</span><span class="p">;</span>
+        <span class="p">}</span>
+
+
+
+	<span class="n">location</span> <span class="o">^~</span> <span class="o">/</span><span class="n">static</span><span class="o">/</span>  <span class="p">{</span>
+	    <span class="n">include</span>  <span class="o">/</span><span class="n">etc</span><span class="o">/</span><span class="n">nginx</span><span class="o">/</span><span class="n">mime</span><span class="o">.</span><span class="n">types</span><span class="p">;</span>
+	    <span class="n">root</span> <span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">html</span><span class="o">/</span><span class="n">hello_world_static</span><span class="p">;</span>
+	<span class="p">}</span>	
+
+<span class="p">}</span>
+
+
+</pre></div>
+</div>
+</div>
+<div class="section" id="systemd-servis-dosyasi">
+<h3>Systemd Servis Dosyasi<a class="headerlink" href="#systemd-servis-dosyasi" title="Bu başlığın kalıcı bağlantısı">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">Unit</span><span class="p">]</span>
+<span class="n">Description</span><span class="o">=</span><span class="n">Hello_world</span> <span class="n">UWSGI</span> <span class="n">servisi</span> 
+<span class="n">After</span><span class="o">=</span><span class="n">network</span><span class="o">.</span><span class="n">target</span>
+
+<span class="p">[</span><span class="n">Service</span><span class="p">]</span>
+<span class="n">User</span><span class="o">=</span><span class="n">nginx</span>
+<span class="n">Group</span><span class="o">=</span><span class="n">nginx</span>
+<span class="n">WorkingDirectory</span><span class="o">=/</span><span class="n">var</span><span class="o">/</span><span class="n">www</span><span class="o">/</span><span class="n">webservice</span><span class="o">/</span><span class="n">hello_world</span>
+<span class="n">ExecStart</span><span class="o">=/</span><span class="n">usr</span><span class="o">/</span><span class="nb">bin</span><span class="o">/</span><span class="n">uwsgi</span> <span class="o">--</span><span class="n">ini</span> <span class="n">uwsgi</span><span class="o">.</span><span class="n">ini</span>
+
+<span class="p">[</span><span class="n">Install</span><span class="p">]</span>
+<span class="n">WantedBy</span><span class="o">=</span><span class="n">multi</span><span class="o">-</span><span class="n">user</span><span class="o">.</span><span class="n">target</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="tablolar-ve-indeksler">
+<h1>Tablolar ve Indeksler<a class="headerlink" href="#tablolar-ve-indeksler" title="Bu başlığın kalıcı bağlantısı">¶</a></h1>
+<ul class="simple">
+<li><a class="reference internal" href="genindex.html"><span class="std std-ref">Dizin</span></a></li>
+<li><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Modül Dizini</span></a></li>
+<li><a class="reference internal" href="search.html"><span class="std std-ref">Arama Sayfası</span></a></li>
+</ul>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html#document-index">Flask, Uwsgi, Nginx, systemd</a></h1>
+
+
+
+
+
+
+
+
+<h3>Gezinti</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-doc/Giris">Giriş</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-doc/DNS">DNS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-doc/Nginx">NGINX Kurulum ve Ayarlar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html#document-doc/AyarDosyalari">Ayar ve Uygulama Dosyalari</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html#document-index">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Ilker Manap.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
